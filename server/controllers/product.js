@@ -3,7 +3,15 @@ import Product from "../model/product.js";
 //controller to get list of all transactions
 export const getTransactions = async (req, res) => {
   try {
-    const { search, page = 1, perPage = 10 } = req.query;
+    const { month, search, page = 1, perPage = 10 } = req.query;
+
+    if (!month) {
+      res.status(400).json({
+        message: "month is required",
+      });
+    }
+    const monthInt = parseInt(month, 10);
+
     const query = {};
     if (search) {
       query.$or = [
@@ -15,6 +23,11 @@ export const getTransactions = async (req, res) => {
     }
 
     const result = await Product.aggregate([
+      {
+        $match: {
+          $expr: { $eq: [{ $month: "$dateOfSale" }, monthInt] },
+        },
+      },
       { $match: query }, //match query
       {
         $facet: {
@@ -27,7 +40,9 @@ export const getTransactions = async (req, res) => {
         },
       },
     ]);
+    console.log(result);
     const transaction = result[0].transaction;
+
     const totalCount =
       result[0].totalCount.length > 0 ? result[0].totalCount[0].count : 0;
     res.status(200).json({
@@ -45,6 +60,7 @@ export const getTransactions = async (req, res) => {
 export const getStatistics = async (req, res) => {
   try {
     const { year, month } = req.query;
+    console.log(month);
     if (!year || !month) {
       return res.status(400).json({
         message: "year and month are required",
